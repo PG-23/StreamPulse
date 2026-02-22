@@ -1,0 +1,35 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: public
+    tables:
+      - name: raw_messages
+        description: "Raw Twitch chat messages ingested from IRC"
+        columns:
+          - name: id
+            tests:
+              - unique
+              - not_null
+
+models:
+  - name: stg_messages
+    description: "Cleaned and standardized chat messages"
+    columns:
+      - name: id
+        description: "Primary key"
+        tests:
+          - unique
+          - not_null
+      - name: channel
+        description: "Twitch channel name (lowercase)"
+        tests:
+          - not_null
+      - name: username
+        description: "Username of the chatter (lowercase)"
+        tests:
+          - not_null
+      - name: message_text
+        description: "The chat message content"
+        tests:
+          - not_null

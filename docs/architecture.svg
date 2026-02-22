@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520">
+  <defs>
+    <filter id="shadow" x="-5%" y="-5%" width="115%" height="115%">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-color="#00000030"/>
+    </filter>
+    <linearGradient id="purple" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#9146FF"/>
+      <stop offset="100%" style="stop-color:#6B2FCF"/>
+    </linearGradient>
+    <linearGradient id="green" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00C49A"/>
+      <stop offset="100%" style="stop-color:#00A07E"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4A90D9"/>
+      <stop offset="100%" style="stop-color:#3672B0"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFD700"/>
+      <stop offset="100%" style="stop-color:#E6C200"/>
+    </linearGradient>
+    <linearGradient id="orange" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF8C42"/>
+      <stop offset="100%" style="stop-color:#E67530"/>
+    </linearGradient>
+    <linearGradient id="red" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF6B6B"/>
+      <stop offset="100%" style="stop-color:#E05555"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="900" height="520" rx="12" fill="#1a1a2e"/>
+
+  <!-- Title -->
+  <text x="450" y="38" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="22" font-weight="bold">📊 StreamPulse — Architecture</text>
+
+  <!-- Row 1: Twitch IRC → JSON Files → PostgreSQL -->
+
+  <!-- Twitch IRC -->
+  <rect x="40" y="70" width="160" height="70" rx="10" fill="url(#purple)" filter="url(#shadow)"/>
+  <text x="120" y="100" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="13" font-weight="bold">Twitch IRC</text>
+  <text x="120" y="120" text-anchor="middle" fill="#e0d0ff" font-family="Arial, sans-serif" font-size="11">Live Chat Stream</text>
+
+  <!-- Arrow 1 -->
+  <line x1="200" y1="105" x2="260" y2="105" stroke="#9146FF" stroke-width="2.5" marker-end="url(#arrowPurple)"/>
+  <defs><marker id="arrowPurple" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#9146FF"/></marker></defs>
+  <text x="230" y="97" text-anchor="middle" fill="#aaa" font-family="Arial, sans-serif" font-size="9">Python</text>
+
+  <!-- JSON Files -->
+  <rect x="270" y="70" width="160" height="70" rx="10" fill="url(#orange)" filter="url(#shadow)"/>
+  <text x="350" y="100" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="13" font-weight="bold">JSON Files</text>
+  <text x="350" y="120" text-anchor="middle" fill="#fff3e0" font-family="Arial, sans-serif" font-size="11">data/raw/</text>
+
+  <!-- Arrow 2 -->
+  <line x1="430" y1="105" x2="490" y2="105" stroke="#FF8C42" stroke-width="2.5" marker-end="url(#arrowOrange)"/>
+  <defs><marker id="arrowOrange" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#FF8C42"/></marker></defs>
+  <text x="460" y="97" text-anchor="middle" fill="#aaa" font-family="Arial, sans-serif" font-size="9">Loader</text>
+
+  <!-- PostgreSQL -->
+  <rect x="500" y="70" width="160" height="70" rx="10" fill="url(#blue)" filter="url(#shadow)"/>
+  <text x="580" y="100" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="13" font-weight="bold">PostgreSQL</text>
+  <text x="580" y="120" text-anchor="middle" fill="#cce0ff" font-family="Arial, sans-serif" font-size="11">raw_messages</text>
+
+  <!-- Row 2: Sentiment Analysis -->
+
+  <!-- Arrow down from PostgreSQL -->
+  <line x1="580" y1="140" x2="580" y2="185" stroke="#4A90D9" stroke-width="2.5" marker-end="url(#arrowBlue)"/>
+  <defs><marker id="arrowBlue" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#4A90D9"/></marker></defs>
+
+  <!-- Sentiment -->
+  <rect x="500" y="190" width="160" height="70" rx="10" fill="url(#gold)" filter="url(#shadow)"/>
+  <text x="580" y="220" text-anchor="middle" fill="#1a1a2e" font-family="Arial, sans-serif" font-size="13" font-weight="bold">Sentiment</text>
+  <text x="580" y="240" text-anchor="middle" fill="#4a4520" font-family="Arial, sans-serif" font-size="11">TextBlob NLP</text>
+
+  <!-- Row 3: dbt Transforms -->
+
+  <!-- Arrow down from Sentiment -->
+  <line x1="580" y1="260" x2="580" y2="305" stroke="#E6C200" stroke-width="2.5" marker-end="url(#arrowGold)"/>
+  <defs><marker id="arrowGold" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#E6C200"/></marker></defs>
+
+  <!-- dbt box -->
+  <rect x="420" y="310" width="320" height="70" rx="10" fill="url(#green)" filter="url(#shadow)"/>
+  <text x="580" y="340" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="13" font-weight="bold">dbt Transforms</text>
+  <text x="580" y="360" text-anchor="middle" fill="#c0ffe8" font-family="Arial, sans-serif" font-size="11">staging → intermediate → marts</text>
+
+  <!-- Row 4: Dashboard -->
+
+  <!-- Arrow down from dbt -->
+  <line x1="580" y1="380" x2="580" y2="425" stroke="#00C49A" stroke-width="2.5" marker-end="url(#arrowGreen)"/>
+  <defs><marker id="arrowGreen" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#00C49A"/></marker></defs>
+
+  <!-- Streamlit -->
+  <rect x="460" y="430" width="240" height="70" rx="10" fill="url(#red)" filter="url(#shadow)"/>
+  <text x="580" y="460" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="13" font-weight="bold">Streamlit Dashboard</text>
+  <text x="580" y="480" text-anchor="middle" fill="#ffe0e0" font-family="Arial, sans-serif" font-size="11">Charts, Sentiment, Metrics</text>
+
+  <!-- Airflow orchestration box -->
+  <rect x="40" y="190" width="200" height="190" rx="10" fill="none" stroke="#8884d8" stroke-width="2" stroke-dasharray="8,4"/>
+  <text x="140" y="215" text-anchor="middle" fill="#8884d8" font-family="Arial, sans-serif" font-size="13" font-weight="bold">Apache Airflow</text>
+  <text x="140" y="235" text-anchor="middle" fill="#aaa" font-family="Arial, sans-serif" font-size="10">Orchestration (every 5 min)</text>
+
+  <!-- Airflow tasks -->
+  <rect x="60" y="250" width="160" height="28" rx="6" fill="#2a2a4e"/>
+  <text x="140" y="269" text-anchor="middle" fill="#8884d8" font-family="Arial, sans-serif" font-size="10">1. load_json_to_postgres</text>
+
+  <rect x="60" y="284" width="160" height="28" rx="6" fill="#2a2a4e"/>
+  <text x="140" y="303" text-anchor="middle" fill="#8884d8" font-family="Arial, sans-serif" font-size="10">2. run_sentiment_analysis</text>
+
+  <rect x="60" y="318" width="160" height="28" rx="6" fill="#2a2a4e"/>
+  <text x="140" y="337" text-anchor="middle" fill="#8884d8" font-family="Arial, sans-serif" font-size="10">3. dbt_run</text>
+
+  <rect x="60" y="352" width="160" height="28" rx="6" fill="#2a2a4e"/>
+  <text x="140" y="371" text-anchor="middle" fill="#8884d8" font-family="Arial, sans-serif" font-size="10">4. dbt_test</text>
+
+  <!-- Dashed arrows from Airflow to pipeline steps -->
+  <line x1="240" y1="264" x2="500" y2="105" stroke="#8884d8" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <line x1="240" y1="298" x2="500" y2="225" stroke="#8884d8" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <line x1="240" y1="332" x2="420" y2="345" stroke="#8884d8" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <line x1="240" y1="366" x2="420" y2="355" stroke="#8884d8" stroke-width="1.5" stroke-dasharray="5,3"/>
+
+  <!-- Docker label -->
+  <rect x="700" y="70" width="170" height="70" rx="10" fill="#2a2a4e" stroke="#555" stroke-width="1"/>
+  <text x="785" y="95" text-anchor="middle" fill="#aaa" font-family="Arial, sans-serif" font-size="12" font-weight="bold">🐳 Docker Compose</text>
+  <text x="785" y="115" text-anchor="middle" fill="#777" font-family="Arial, sans-serif" font-size="10">PostgreSQL + Airflow</text>
+  <text x="785" y="130" text-anchor="middle" fill="#777" font-family="Arial, sans-serif" font-size="10">containerized</text>
+</svg>

@@ -1,0 +1,31 @@
+version: 2
+
+models:
+  - name: chat_activity
+    description: >
+      Per-minute chat activity metrics by channel.
+      Powers the main time-series dashboard showing message volume,
+      unique chatters, emote usage, and behavioral signals over time.
+    columns:
+      - name: minute_bucket
+        description: "Truncated to the minute"
+        tests:
+          - not_null
+      - name: channel
+        description: "Twitch channel name"
+        tests:
+          - not_null
+      - name: message_count
+        description: "Total messages in this minute"
+
+  - name: channel_summary
+    description: >
+      Overall summary statistics per channel.
+      Provides a high-level comparison across monitored channels
+      including total volume, unique chatters, and behavioral ratios.
+    columns:
+      - name: channel
+        description: "Twitch channel name"
+        tests:
+          - unique
+          - not_null

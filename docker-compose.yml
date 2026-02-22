@@ -1,0 +1,49 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: streampulse_db
+    environment:
+      POSTGRES_DB: twitch_chat
+      POSTGRES_USER: pipeline
+      POSTGRES_PASSWORD: pipeline_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pipeline -d twitch_chat"]
+      interval: 5s
+      retries: 5
+
+  airflow:
+    image: apache/airflow:2.9.3-python3.11
+    container_name: streampulse_airflow
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://pipeline:pipeline_password@postgres:5432/twitch_chat
+      AIRFLOW__CORE__FERNET_KEY: ""
+      AIRFLOW__WEBSERVER__SECRET_KEY: "streampulse-secret-key"
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: twitch_chat
+      POSTGRES_USER: pipeline
+      POSTGRES_PASSWORD: pipeline_password
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./ingestion:/opt/airflow/ingestion
+      - ./data:/opt/airflow/data
+      - ./dbt_transforms:/opt/airflow/dbt_transforms
+      - ./airflow/init.sh:/opt/airflow/init.sh
+      - airflow_logs:/opt/airflow/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["bash", "/opt/airflow/init.sh"]
+
+volumes:
+  pgdata:
+  airflow_logs:
