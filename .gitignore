@@ -4,3 +4,7 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+ingestion/data/processed/
+dbt_transforms/target/
+dbt_transforms/logs/
+logs/
