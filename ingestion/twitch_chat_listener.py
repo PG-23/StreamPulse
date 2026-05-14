@@ -1,85 +1,135 @@
 """
 Twitch Chat Listener
-Connects to Twitch IRC via websocket, collects chat messages,
-and writes them to disk as batched JSON files.
+
+Connects to Twitch IRC via raw sockets, collects chat messages with full
+metadata (badges, emotes, subscriber status), and writes them to disk as
+batched JSON files for downstream ingestion into PostgreSQL.
+
+Usage:
+    python twitch_chat_listener.py
 """
 
 import json
+import logging
 import os
-import time
-import socket
 import re
+import socket
+import time
 from datetime import datetime, timezone
+
 from config import (
-    TWITCH_TOKEN, TWITCH_NICKNAME, TWITCH_CHANNELS,
-    BATCH_SIZE, BATCH_INTERVAL_SECONDS, RAW_DATA_PATH,
+    BATCH_INTERVAL_SECONDS,
+    BATCH_SIZE,
+    RAW_DATA_PATH,
+    TWITCH_CHANNELS,
+    TWITCH_NICKNAME,
+    TWITCH_TOKEN,
 )
 
-# Twitch IRC server details
+__all__ = ["connect_to_twitch", "parse_message", "flush_batch", "listen"]
+
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+log = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+
 IRC_SERVER = "irc.chat.twitch.tv"
 IRC_PORT = 6667
+MAX_RECONNECT_ATTEMPTS = 5
+RECONNECT_DELAY_SECONDS = 5
 
-# Regex to parse IRC messages with tags
+# Regex to parse IRC messages with Twitch tags
 MSG_PATTERN = re.compile(
     r"^@(?P<tags>\S+) :(?P<user>\w+)!\w+@\w+\.tmi\.twitch\.tv "
     r"PRIVMSG #(?P<channel>\w+) :(?P<message>.+)$"
 )
 
-# Simpler fallback pattern without tags
+# Fallback pattern for messages without tags
 MSG_PATTERN_SIMPLE = re.compile(
     r"^:(?P<user>\w+)!\w+@\w+\.tmi\.twitch\.tv "
     r"PRIVMSG #(?P<channel>\w+) :(?P<message>.+)$"
 )
 
 
-def connect_to_twitch():
-    """Establish connection to Twitch IRC server."""
+# ---------------------------------------------------------------------------
+# Connection
+# ---------------------------------------------------------------------------
+
+def connect_to_twitch() -> socket.socket | None:
+    """
+    Establish an authenticated connection to the Twitch IRC server.
+
+    Requests the twitch.tv/tags capability for rich message metadata,
+    authenticates with the provided OAuth token, and joins all configured
+    channels.
+
+    Returns:
+        An open socket ready for message listening, or None if authentication
+        fails.
+    """
     sock = socket.socket()
-    sock.settimeout(10)  # 10 second timeout for initial connection
+    sock.settimeout(10)
     sock.connect((IRC_SERVER, IRC_PORT))
 
-    # Request tags capability for richer metadata
     sock.send("CAP REQ :twitch.tv/tags twitch.tv/commands\r\n".encode("utf-8"))
     sock.send(f"PASS {TWITCH_TOKEN}\r\n".encode("utf-8"))
     sock.send(f"NICK {TWITCH_NICKNAME}\r\n".encode("utf-8"))
 
-    # Wait for and print server response to check auth
-    print("Waiting for server response...")
+    log.info("Waiting for server response...")
     time.sleep(2)
 
     try:
         response = sock.recv(4096).decode("utf-8", errors="ignore")
-        print(f"Server response:\n{response}")
+        log.debug("Server response: %s", response)
 
         if "Login authentication failed" in response:
-            print("\nERROR: Authentication failed!")
-            print("Check that your .env has:")
-            print("  - TWITCH_TOKEN in format: oauth:your_token_here")
-            print("  - TWITCH_NICKNAME is your lowercase Twitch username")
+            log.error(
+                "Authentication failed. Verify that TWITCH_TOKEN is in the "
+                "format 'oauth:your_token_here' and TWITCH_NICKNAME matches "
+                "your lowercase Twitch username."
+            )
             sock.close()
             return None
 
         if "Welcome" not in response:
-            print("\nWARNING: Did not receive welcome message.")
-            print("Full response above may contain clues.")
+            log.warning("Did not receive welcome message. Check server response.")
 
     except socket.timeout:
-        print("WARNING: No response from server within timeout.")
+        log.warning("No response from server within timeout period.")
 
-    # Join channels
     for channel in TWITCH_CHANNELS:
         channel = channel.strip()
         sock.send(f"JOIN {channel}\r\n".encode("utf-8"))
-        print(f"Joined {channel}")
+        log.info("Joined channel: %s", channel)
 
-    # Set to blocking with longer timeout for message listening
     sock.settimeout(300)
-
     return sock
 
 
-def parse_tags(tag_string):
-    """Parse IRC tags into a dictionary."""
+# ---------------------------------------------------------------------------
+# Parsing
+# ---------------------------------------------------------------------------
+
+def parse_tags(tag_string: str) -> dict[str, str]:
+    """
+    Parse a Twitch IRC tag string into a key-value dictionary.
+
+    Args:
+        tag_string: Raw semicolon-delimited tag string from the IRC message.
+
+    Returns:
+        Dictionary of tag names to their string values.
+    """
     tags = {}
     for tag in tag_string.split(";"):
         if "=" in tag:
@@ -88,9 +138,20 @@ def parse_tags(tag_string):
     return tags
 
 
-def parse_message(raw_line):
-    """Parse a raw IRC line into a structured message dict."""
-    # Try tagged pattern first
+def parse_message(raw_line: str) -> dict | None:
+    """
+    Parse a raw IRC line into a structured message dictionary.
+
+    Attempts to match the full tagged pattern first for rich metadata,
+    falling back to a simpler pattern if tags are absent.
+
+    Args:
+        raw_line: A single raw line received from the IRC socket.
+
+    Returns:
+        A dictionary containing message fields, or None if the line is
+        not a PRIVMSG (e.g. JOIN, PART, NOTICE).
+    """
     match = MSG_PATTERN.match(raw_line)
     if match:
         tags = parse_tags(match.group("tags"))
@@ -109,7 +170,6 @@ def parse_message(raw_line):
             "message_id": tags.get("id", ""),
         }
 
-    # Fallback to simple pattern
     match = MSG_PATTERN_SIMPLE.match(raw_line)
     if match:
         return {
@@ -130,8 +190,20 @@ def parse_message(raw_line):
     return None
 
 
-def flush_batch(batch):
-    """Write a batch of messages to a JSON file on disk."""
+# ---------------------------------------------------------------------------
+# Batching
+# ---------------------------------------------------------------------------
+
+def flush_batch(batch: list[dict]) -> None:
+    """
+    Write a batch of parsed messages to a timestamped JSON file on disk.
+
+    Files are written to RAW_DATA_PATH and named using a UTC timestamp
+    to avoid collisions when the listener is running continuously.
+
+    Args:
+        batch: List of parsed message dictionaries to write.
+    """
     if not batch:
         return
 
@@ -142,43 +214,71 @@ def flush_batch(batch):
     with open(filepath, "w") as f:
         json.dump(batch, f, indent=2)
 
-    print(f"Flushed {len(batch)} messages to {filepath}")
+    log.info("Flushed %d messages to %s", len(batch), filepath)
 
 
-def listen():
-    """Main loop: connect, listen, batch, and flush."""
+# ---------------------------------------------------------------------------
+# Main loop
+# ---------------------------------------------------------------------------
+
+def listen() -> None:
+    """
+    Connect to Twitch IRC and listen for chat messages indefinitely.
+
+    Messages are accumulated into batches and flushed to disk when either
+    BATCH_SIZE messages have been collected or BATCH_INTERVAL_SECONDS has
+    elapsed, whichever comes first. Automatically attempts reconnection up
+    to MAX_RECONNECT_ATTEMPTS times on connection loss before exiting.
+
+    Handles KeyboardInterrupt gracefully by flushing any remaining messages
+    before closing the socket.
+    """
     sock = connect_to_twitch()
     if sock is None:
         return
 
-    print("\nListening for messages...\n")
+    log.info("Listening for messages...")
 
     buffer = ""
-    batch = []
+    batch: list[dict] = []
     last_flush = time.time()
+    reconnect_attempts = 0
 
     try:
         while True:
             try:
                 data = sock.recv(4096).decode("utf-8", errors="ignore")
             except socket.timeout:
-                print("No data received for 5 minutes. Connection may be stale.")
+                log.warning("No data received for 5 minutes. Connection may be stale.")
                 continue
 
             if not data:
-                print("Connection lost. Reconnecting in 5 seconds...")
-                time.sleep(5)
+                if reconnect_attempts >= MAX_RECONNECT_ATTEMPTS:
+                    log.error(
+                        "Connection lost. Max reconnection attempts (%d) reached. Exiting.",
+                        MAX_RECONNECT_ATTEMPTS,
+                    )
+                    break
+
+                reconnect_attempts += 1
+                log.warning(
+                    "Connection lost. Reconnecting in %ds (attempt %d/%d)...",
+                    RECONNECT_DELAY_SECONDS,
+                    reconnect_attempts,
+                    MAX_RECONNECT_ATTEMPTS,
+                )
+                time.sleep(RECONNECT_DELAY_SECONDS)
                 sock = connect_to_twitch()
                 if sock is None:
-                    return
+                    break
                 continue
 
+            reconnect_attempts = 0  # Reset on successful data receipt
             buffer += data
             lines = buffer.split("\r\n")
-            buffer = lines.pop()  # Keep incomplete line in buffer
+            buffer = lines.pop()
 
             for line in lines:
-                # Respond to PINGs to stay connected
                 if line.startswith("PING"):
                     sock.send("PONG :tmi.twitch.tv\r\n".encode("utf-8"))
                     continue
@@ -186,9 +286,13 @@ def listen():
                 parsed = parse_message(line)
                 if parsed:
                     batch.append(parsed)
-                    print(f"[#{parsed['channel']}] {parsed['username']}: {parsed['message']}")
+                    log.info(
+                        "[#%s] %s: %s",
+                        parsed["channel"],
+                        parsed["username"],
+                        parsed["message"],
+                    )
 
-            # Flush batch if size or time threshold reached
             now = time.time()
             if len(batch) >= BATCH_SIZE or (now - last_flush) >= BATCH_INTERVAL_SECONDS:
                 flush_batch(batch)
@@ -196,10 +300,11 @@ def listen():
                 last_flush = now
 
     except KeyboardInterrupt:
-        print("\nStopping listener...")
-        flush_batch(batch)  # Flush remaining messages
+        log.info("Listener stopped by user.")
+    finally:
+        flush_batch(batch)
         sock.close()
-        print("Done.")
+        log.info("Socket closed. Exiting.")
 
 
 if __name__ == "__main__":
